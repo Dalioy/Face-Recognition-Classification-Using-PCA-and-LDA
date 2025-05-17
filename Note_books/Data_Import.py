@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-root_folder= "E:\@Career\AI\Technology\Main Use\ML\College _Content\PCA_Image_Recognition\Data"
+root_folder= "E:\@Career\AI\Technology\Main Use\ML\College _Content\PCA_Image_Recognition\Face-Recognition-Classification-Using-PCA-and-LDA\Data"
 
 Data=[]
 
@@ -42,5 +42,4 @@ df=df.drop(["image_array"],axis=1)
 
 # Save_Data
 print(df.head())
-df.to_csv("Data/data_frame.csv", index=False)
-
+df.to_json("Data/data_frame.json", orient='records', lines=True)
