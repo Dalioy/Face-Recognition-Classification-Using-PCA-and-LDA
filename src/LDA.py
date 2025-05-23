@@ -1,47 +1,58 @@
-def LDA(D, y):
+import pandas as pd 
+import numpy as np 
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
+
+def get_LDA(X_train, y_train):
     import numpy as np
 
-    # 1- Class-specific Subsets
-    classes = np.unique(y)
-    m=len(classes)
-    class_data = []
-    for c in classes:
-        class_data.append(D[y == c])
+    y_train = np.squeeze(y_train)
+    unique_classes = np.unique(y_train)
 
-    # Class Mean
-    mu = []
-    for i in class_data:
-        mu.append(np.mean(i, axis=0))
+    class_means = []
+    class_sizes = []
 
-    mu_overall = np.mean(D, axis=0)
+    for cls in unique_classes:
+        class_data = X_train[y_train == cls]
+        class_means.append(np.mean(class_data, axis=0))
+        class_sizes.append(len(class_data))
 
-    # Between-Class Scatter matrix
-    B = np.zeros((D.shape[1], D.shape[1]))
-    for i in range(len(class_data)):
-        n_i = class_data[i].shape[0]
-        mean_diff = (mu[i] - mu_overall).reshape(-1, 1)
-        B += n_i * (mean_diff @ mean_diff.T)
+    class_means = np.array(class_means)
+    class_sizes = np.array(class_sizes)
+    overall_mean = np.mean(X_train, axis=0)
 
-    # Center-Class Matrices
-    Z = []
-    for i in range(len(class_data)):
-        Z.append(class_data[i] - mu[i])
+    # Within-class scatter matrix
+    S_W = np.zeros((X_train.shape[1], X_train.shape[1]))
+    for i, cls in enumerate(unique_classes):
+        class_data = X_train[y_train == cls]
+        centered = class_data - class_means[i]
+        S_W += centered.T @ centered
 
-    # Class Scatter Matrices
-    Si = []
-    for i in range(len(Z)):
-        Si.append(Z[i].T @ Z[i])
+    S_W += 1e-7 * np.identity(X_train.shape[1])  # Regularization
 
-    # within - class scatter matrix
-    S = np.zeros((D.shape[1], D.shape[1]))
-    for i in range(len(Si)):
-        S += Si[i]
+    # Between-class scatter matrix
+    S_B = np.zeros((X_train.shape[1], X_train.shape[1]))
+    for i in range(len(unique_classes)):
+        diff = class_means[i] - overall_mean
+        S_B += class_sizes[i] * np.outer(diff, diff)
 
-    # computer dominant eigen
-    S_inv = np.linalg.pinv(S)
-    eigvals, eigvecs = np.linalg.eig(S_inv @ B)
+    # Solve the eigenvalue problem
+    eigvals, eigvecs = np.linalg.eig(np.linalg.inv(S_W) @ S_B)
+    idx = np.argsort(eigvals)[::-1]
+    eigvecs = eigvecs[:, idx]
 
-    sorted_indices = np.argsort(-eigvals.real)
-    U = eigvecs[:, sorted_indices[:m - 1]].real  
+    projection_matrix = eigvecs[:, :len(unique_classes) - 1]
+    return np.real(projection_matrix)
 
-    return U
+def LDA_projected_data(training_data,test_data,projection_matrix):
+    projected_X_train = np.dot(training_data, projection_matrix)
+    projected_X_test = np.dot(test_data, projection_matrix)
+    return projected_X_train, projected_X_test
+
+def Test_LDA(X_train, X_test, y_train, y_test, LDA_projection_matrix,k):
+    projected_X_train, projected_X_test = LDA_projected_data(X_train,X_test,LDA_projection_matrix)
+    knn = KNeighborsClassifier(n_neighbors=k)
+    knn.fit(projected_X_train, y_train.ravel())
+    y_pred = knn.predict(projected_X_test)
+    accuracy = accuracy_score(y_test, y_pred.ravel())
+    return accuracy

@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 
-def PCA(training_data, alpha):
+def PCA(training_data, alpha): # هي نسبة التباين اللي حابب تحتفظ بيه من البيانات الأصلية. alpha
     # Compute the mean of the training data
     mean_face = np.mean(training_data, axis=0)
     # subtract the mean from the training data
